@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fraction Addition & Subtraction Visualizer — Circular Slices</title>
+<style>
+  :root{
+    --ink:#222;
+    --bg:#fff;
+    --ghost:#8d98a3;
+    --error:#b3261e;
+    --left:#A9C5DA;
+    --right:#D7B49E;
+    --dim:#f3f4f6;
+    --panel:#ffffff;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    width:100%;
+    height:100%;
+    margin:0;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  #app{
+    --sideW:min(38vw,460px);
+    width:100vw;
+    height:100vh;
+    padding:2.5vh 3vw 2vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1.5vh;
+  }
+
+  #problemRow{
+    width:auto;
+    max-width:96vw;
+    display:grid;
+    grid-template-columns:var(--sideW) auto var(--sideW);
+    gap:2.4vw;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .fractionSide{
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:1.3vh;
+  }
+
+  .fractionLabel, #resultLabel{
+    font-family:"STIX Two Math","Cambria Math","Times New Roman",serif;
+    font-size:clamp(58px,7vw,112px);
+    line-height:.88;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-width:1.25em;
+    user-select:none;
+    transition:transform .16s ease,color .16s ease;
+  }
+
+  .fractionLabel .bar, #resultLabel .bar{
+    width:100%;
+    min-width:1.05em;
+    height:.055em;
+    background:currentColor;
+    margin:.08em 0 .09em;
+    border-radius:99px;
+  }
+
+  .fractionLabel.bump, #resultLabel.bump{ transform:scale(1.06); }
+  .fractionLabel.error, #resultLabel.error{ color:var(--error) !important; }
+
+  #leftLabel{ color:var(--left); }
+  #rightLabel{ color:var(--right); }
+
+  #operator{
+    font-family:"STIX Two Math","Cambria Math","Times New Roman",serif;
+    font-size:clamp(64px,7vw,118px);
+    font-weight:500;
+    line-height:1;
+    margin-top:7vh;
+    user-select:none;
+  }
+
+  .diagram{
+    width:min(31vw,320px);
+    height:min(31vw,320px);
+    min-width:180px;
+    min-height:180px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .diagram svg, .resultPie svg{
+    width:100%;
+    height:100%;
+    display:block;
+  }
+
+  #resultArea{
+    width:min(82vw,980px);
+    max-width:96vw;
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    gap:1vh;
+    margin-top:.2vh;
+  }
+
+  #equals{
+    font-family:"STIX Two Math","Cambria Math","Times New Roman",serif;
+    font-size:clamp(46px,5vw,74px);
+    line-height:.8;
+  }
+
+  #resultLabel{
+    font-size:clamp(48px,5.7vw,88px);
+    color:var(--ink);
+  }
+
+  #resultPies{
+    width:100%;
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .resultPie{
+    width:min(24vw,220px);
+    height:min(24vw,220px);
+    min-width:160px;
+    min-height:160px;
+  }
+
+  #subtractionNote{
+    display:none;
+    color:#666;
+    font-size:clamp(14px,1.3vw,18px);
+    margin-top:-.2vh;
+    text-align:center;
+  }
+
+  #toast{
+    position:fixed;
+    bottom:1.5vh;
+    left:50%;
+    transform:translateX(-50%);
+    color:var(--ghost);
+    font-size:clamp(15px,1.4vw,22px);
+    opacity:0;
+    transition:opacity .18s ease;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+  #toast.show{ opacity:1; }
+
+  #startOverlay,#helpOverlay{
+    position:fixed;
+    inset:0;
+    background:rgba(255,255,255,.97);
+    z-index:20;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:28px;
+  }
+
+  #helpOverlay{ display:none; }
+
+  .panel{
+    width:min(820px,94vw);
+    text-align:center;
+  }
+
+  .panel h1{
+    font-size:clamp(32px,5vw,60px);
+    margin:0 0 24px;
+  }
+
+  .panel p{
+    font-size:clamp(17px,2vw,23px);
+    line-height:1.45;
+    color:#555;
+    margin:12px 0;
+  }
+
+  .startInputs{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:18px;
+    margin:18px 0 20px;
+    flex-wrap:wrap;
+  }
+
+  .startInputs input,.startInputs select{
+    border:4px solid var(--ink);
+    border-radius:10px;
+    outline:none;
+    background:#fff;
+    text-align:center;
+    font-family:"STIX Two Math","Cambria Math","Times New Roman",serif;
+  }
+
+  .startInputs input{
+    width:min(250px,34vw);
+    font-size:clamp(34px,5vw,66px);
+    padding:10px 12px;
+  }
+
+  .startInputs select{
+    width:90px;
+    font-size:clamp(34px,5vw,60px);
+    padding:8px 10px;
+  }
+
+  .keys{
+    margin:22px auto 0;
+    width:min(690px,90vw);
+    display:grid;
+    grid-template-columns:1fr 1.3fr;
+    gap:11px 24px;
+    text-align:left;
+    font-size:clamp(16px,1.7vw,21px);
+    color:#444;
+  }
+
+  .keys b{ color:var(--ink); }
+
+  .tiny{
+    margin-top:22px !important;
+    font-size:clamp(14px,1.3vw,18px) !important;
+    color:#777 !important;
+  }
+
+  @media (max-width:900px){
+    #app{ --sideW:min(39vw,380px); }
+    #problemRow{ gap:1.5vw; }
+    .diagram{ width:min(37vw,260px); height:min(37vw,260px); }
+    .resultPie{ width:min(32vw,190px); height:min(32vw,190px); }
+  }
+
+  @media (max-height:760px){
+    #app{ padding-top:1.2vh; gap:1vh; }
+    .fractionLabel{ font-size:clamp(46px,7vh,72px); }
+    .diagram{ width:min(28vh,250px); height:min(28vh,250px); }
+    .resultPie{ width:min(22vh,170px); height:min(22vh,170px); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="problemRow">
+    <div class="fractionSide">
+      <div id="leftLabel" class="fractionLabel">
+        <div id="leftNum">1</div><div class="bar"></div><div id="leftDen">2</div>
+      </div>
+      <div id="leftDiagram" class="diagram"></div>
+    </div>
+
+    <div id="operator">+</div>
+
+    <div class="fractionSide">
+      <div id="rightLabel" class="fractionLabel">
+        <div id="rightNum">1</div><div class="bar"></div><div id="rightDen">3</div>
+      </div>
+      <div id="rightDiagram" class="diagram"></div>
+    </div>
+  </div>
+
+  <div id="resultArea">
+    <div id="equals">=</div>
+    <div id="resultLabel">
+      <div id="resultNum">5</div><div class="bar"></div><div id="resultDen">6</div>
+    </div>
+    <div id="resultPies"></div>
+    <div id="subtractionNote">Striped pieces show the amount being removed.</div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<div id="startOverlay">
+  <div class="panel">
+    <h1>Fraction Addition &amp; Subtraction</h1>
+    <p>Enter two starting fractions.</p>
+    <div class="startInputs">
+      <input id="leftInput" value="1/2" autocomplete="off" spellcheck="false">
+      <select id="opInput" aria-label="operation">
+        <option value="+">+</option>
+        <option value="-">−</option>
+      </select>
+      <input id="rightInput" value="1/3" autocomplete="off" spellcheck="false">
+    </div>
+    <p><b>Enter</b> to begin</p>
+    <p class="tiny">Clean circular-slices version. Press <b>?</b> for controls.</p>
+  </div>
+</div>
+
+<div id="helpOverlay">
+  <div class="panel">
+    <h1>Controls</h1>
+    <div class="keys">
+      <div><b>Hold ← + 2–9</b></div><div>multiply the left fraction by n/n</div>
+      <div><b>Hold → + 2–9</b></div><div>multiply the right fraction by n/n</div>
+      <div><b>Hold Shift + ←/→ + 2–9</b></div><div>divide that fraction by n/n when possible</div>
+      <div><b>Enter or Space</b></div><div>show / hide the result when denominators match</div>
+      <div><b>Z</b></div><div>undo the last fraction change</div>
+      <div><b>R</b></div><div>reset both fractions</div>
+      <div><b>F</b></div><div>choose a new pair of fractions</div>
+      <div><b>?</b> or <b>Esc</b></div><div>close this help</div>
+    </div>
+    <p class="tiny">Example: hold the left arrow and tap 3 to turn 1/2 into 3/6. Hold the right arrow and tap 2 to turn 1/3 into 2/6.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  const $ = id => document.getElementById(id);
+
+  const leftNumEl = $('leftNum');
+  const leftDenEl = $('leftDen');
+  const rightNumEl = $('rightNum');
+  const rightDenEl = $('rightDen');
+  const leftLabel = $('leftLabel');
+  const rightLabel = $('rightLabel');
+  const leftDiagram = $('leftDiagram');
+  const rightDiagram = $('rightDiagram');
+  const operatorEl = $('operator');
+
+  const resultArea = $('resultArea');
+  const resultNumEl = $('resultNum');
+  const resultDenEl = $('resultDen');
+  const resultPies = $('resultPies');
+  const subtractionNote = $('subtractionNote');
+
+  const startOverlay = $('startOverlay');
+  const helpOverlay = $('helpOverlay');
+  const leftInput = $('leftInput');
+  const rightInput = $('rightInput');
+  const opInput = $('opInput');
+  const toast = $('toast');
+
+  let operation = '+';
+  let left = newSide(1,2);
+  let right = newSide(1,3);
+  let history = [];
+  let heldLeft = false;
+  let heldRight = false;
+  let resultVisible = false;
+  let toastTimer = null;
+
+  function newSide(n=1,d=2){
+    return { startNum:n, startDen:d, num:n, den:d };
+  }
+
+  function copySide(s){
+    return { startNum:s.startNum, startDen:s.startDen, num:s.num, den:s.den };
+  }
+
+  function snapshot(){
+    return { left:copySide(left), right:copySide(right), resultVisible };
+  }
+
+  function restore(s){
+    left = copySide(s.left);
+    right = copySide(s.right);
+    resultVisible = s.resultVisible;
+    renderAll();
+  }
+
+  function parseFraction(text){
+    const m = text.trim().match(/^(\d+)\s*\/\s*(\d+)$/);
+    if(!m) return null;
+    const n = Number(m[1]);
+    const d = Number(m[2]);
+    if(!Number.isInteger(n) || !Number.isInteger(d) || d<=0 || n<0 || n>d) return null;
+    return {n,d};
+  }
+
+  function showToast(msg,error=false){
+    toast.textContent = msg;
+    toast.style.color = error ? 'var(--error)' : 'var(--ghost)';
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>toast.classList.remove('show'),950);
+  }
+
+  function bump(el,error=false){
+    el.classList.remove('bump','error');
+    void el.offsetWidth;
+    el.classList.add('bump');
+    if(error) el.classList.add('error');
+    setTimeout(()=>el.classList.remove('bump','error'),220);
+  }
+
+  function createSvgEl(name, attrs={}){
+    const el = document.createElementNS(SVG_NS, name);
+    for(const [k,v] of Object.entries(attrs)) el.setAttribute(k, String(v));
+    return el;
+  }
+
+  function polar(cx,cy,r,deg){
+    const rad = (deg-90) * Math.PI / 180;
+    return { x: cx + r*Math.cos(rad), y: cy + r*Math.sin(rad) };
+  }
+
+  function sectorPath(cx,cy,r,startDeg,endDeg){
+    const start = polar(cx,cy,r,startDeg);
+    const end = polar(cx,cy,r,endDeg);
+    const largeArc = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
+    return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+  }
+
+  function radialLinePath(cx,cy,r,deg){
+    const p = polar(cx,cy,r,deg);
+    return `M ${cx} ${cy} L ${p.x} ${p.y}`;
+  }
+
+  function addStripedRemoved(svg, pathData){
+    const base = createSvgEl('path', {
+      d:pathData,
+      fill:'rgba(255,255,255,.78)'
+    });
+    svg.appendChild(base);
+
+    const stripeClipId = `removedClip_${Math.random().toString(36).slice(2)}`;
+    const defs = svg.querySelector('defs') || (() => {
+      const d = createSvgEl('defs');
+      svg.prepend(d);
+      return d;
+    })();
+
+    const clip = createSvgEl('clipPath', { id:stripeClipId });
+    clip.appendChild(createSvgEl('path', { d:pathData }));
+    defs.appendChild(clip);
+
+    const stripeGroup = createSvgEl('g', { 'clip-path': `url(#${stripeClipId})` });
+    for(let x=-100; x<200; x+=7){
+      stripeGroup.appendChild(createSvgEl('line', {
+        x1:x,
+        y1:0,
+        x2:x+120,
+        y2:120,
+        stroke:'rgba(160,120,100,.85)',
+        'stroke-width':3
+      }));
+    }
+    svg.appendChild(stripeGroup);
+  }
+
+  function renderCircleModel(container, den, partTypes, ariaLabel='fraction circle'){
+    container.innerHTML = '';
+    const svg = createSvgEl('svg', { viewBox:'0 0 100 100', role:'img', 'aria-label':ariaLabel });
+
+    svg.appendChild(createSvgEl('circle', {
+      cx:50, cy:50, r:46.5,
+      fill:'white',
+      stroke:'none'
+    }));
+
+    for(let i=0;i<den;i++){
+      const start = (360/den)*i;
+      const end = (360/den)*(i+1);
+      const pathData = sectorPath(50,50,46,start,end);
+      const part = partTypes[i] || 'dim';
+
+      if(part === 'left'){
+        svg.appendChild(createSvgEl('path', { d:pathData, fill:'var(--left)' }));
+      } else if(part === 'right'){
+        svg.appendChild(createSvgEl('path', { d:pathData, fill:'var(--right)' }));
+      } else if(part === 'removed'){
+        addStripedRemoved(svg, pathData);
+      } else {
+        svg.appendChild(createSvgEl('path', { d:pathData, fill:'var(--dim)' }));
+      }
+    }
+
+    for(let i=0;i<den;i++){
+      const deg = (360/den)*i;
+      svg.appendChild(createSvgEl('path', {
+        d: radialLinePath(50,50,46,deg),
+        stroke:'var(--ink)',
+        'stroke-width': Math.max(.8, 2.2 - den*0.04),
+        fill:'none'
+      }));
+    }
+
+    svg.appendChild(createSvgEl('circle', {
+      cx:50, cy:50, r:46,
+      fill:'none',
+      stroke:'var(--ink)',
+      'stroke-width':2.8
+    }));
+
+    container.appendChild(svg);
+  }
+
+  function renderSide(side,which){
+    const parts = Array.from({length:side.den}, (_,i)=> i < side.num ? which : 'dim');
+    if(which==='left'){
+      leftNumEl.textContent = side.num;
+      leftDenEl.textContent = side.den;
+      renderCircleModel(leftDiagram, side.den, parts, `left fraction ${side.num}/${side.den}`);
+    } else {
+      rightNumEl.textContent = side.num;
+      rightDenEl.textContent = side.den;
+      renderCircleModel(rightDiagram, side.den, parts, `right fraction ${side.num}/${side.den}`);
+    }
+  }
+
+  function renderResult(){
+    resultPies.innerHTML='';
+    subtractionNote.style.display='none';
+
+    const d=left.den;
+
+    if(operation==='+'){
+      const total=left.num+right.num;
+      resultNumEl.textContent=total;
+      resultDenEl.textContent=d;
+
+      let leftRemain=left.num;
+      let rightRemain=right.num;
+      const wholes=Math.ceil(total/d) || 1;
+
+      for(let b=0;b<wholes;b++){
+        const parts=[];
+        for(let i=0;i<d;i++){
+          if(leftRemain>0){
+            parts.push('left');
+            leftRemain--;
+          } else if(rightRemain>0){
+            parts.push('right');
+            rightRemain--;
+          } else {
+            parts.push('dim');
+          }
+        }
+        const wrap=document.createElement('div');
+        wrap.className='resultPie';
+        renderCircleModel(wrap, d, parts, `result circle ${b+1}`);
+        resultPies.appendChild(wrap);
+      }
+    } else {
+      const total=left.num-right.num;
+      resultNumEl.textContent=total;
+      resultDenEl.textContent=d;
+
+      if(total<0){
+        const msg=document.createElement('div');
+        msg.style.fontSize='clamp(18px,2vw,26px)';
+        msg.style.color='#666';
+        msg.textContent='The result is negative, so this area model is not drawn.';
+        resultPies.appendChild(msg);
+        return;
+      }
+
+      const parts=[];
+      for(let i=0;i<d;i++){
+        if(i<total) parts.push('left');
+        else if(i<total + right.num) parts.push('removed');
+        else parts.push('dim');
+      }
+
+      const wrap=document.createElement('div');
+      wrap.className='resultPie';
+      renderCircleModel(wrap, d, parts, 'subtraction result');
+      resultPies.appendChild(wrap);
+      subtractionNote.style.display='block';
+    }
+  }
+
+  function renderAll(){
+    operatorEl.textContent = operation==='+' ? '+' : '−';
+    renderSide(left,'left');
+    renderSide(right,'right');
+
+    if(resultVisible){
+      if(left.den===right.den){
+        renderResult();
+        resultArea.style.display='flex';
+      } else {
+        resultVisible=false;
+        resultArea.style.display='none';
+      }
+    } else {
+      resultArea.style.display='none';
+    }
+  }
+
+  function multiplySide(sideName,k){
+    history.push(snapshot());
+    resultVisible=false;
+
+    const side = sideName==='left' ? left : right;
+    const label = sideName==='left' ? leftLabel : rightLabel;
+
+    side.num*=k;
+    side.den*=k;
+
+    renderAll();
+    bump(label);
+    showToast(`${sideName==='left'?'Left':'Right'} × ${k}/${k}`);
+  }
+
+  function divideSide(sideName,k){
+    const side = sideName==='left' ? left : right;
+    const label = sideName==='left' ? leftLabel : rightLabel;
+
+    if(side.num%k!==0 || side.den%k!==0){
+      bump(label,true);
+      showToast(`${sideName==='left'?'Left':'Right'} is not divisible by ${k}`,true);
+      return;
+    }
+
+    history.push(snapshot());
+    resultVisible=false;
+
+    side.num/=k;
+    side.den/=k;
+
+    renderAll();
+    bump(label);
+    showToast(`${sideName==='left'?'Left':'Right'} ÷ ${k}`);
+  }
+
+  function toggleResult(){
+    if(left.den!==right.den){
+      resultVisible=false;
+      resultArea.style.display='none';
+      showToast('Make the denominators match first',true);
+      bump(leftLabel,true);
+      bump(rightLabel,true);
+      return;
+    }
+
+    resultVisible=!resultVisible;
+    renderAll();
+  }
+
+  function reset(){
+    left.num=left.startNum;
+    left.den=left.startDen;
+    right.num=right.startNum;
+    right.den=right.startDen;
+    history=[];
+    resultVisible=false;
+    renderAll();
+    showToast('Reset');
+  }
+
+  function undo(){
+    if(!history.length){
+      showToast('Nothing to undo');
+      return;
+    }
+    const s=history.pop();
+    restore(s);
+    showToast('Undo');
+  }
+
+  function begin(){
+    const L=parseFraction(leftInput.value);
+    const R=parseFraction(rightInput.value);
+
+    leftInput.style.borderColor='var(--ink)';
+    rightInput.style.borderColor='var(--ink)';
+
+    if(!L){
+      leftInput.style.borderColor='var(--error)';
+      leftInput.focus();
+      leftInput.select();
+      return;
+    }
+    if(!R){
+      rightInput.style.borderColor='var(--error)';
+      rightInput.focus();
+      rightInput.select();
+      return;
+    }
+
+    operation=opInput.value;
+    left=newSide(L.n,L.d);
+    right=newSide(R.n,R.d);
+
+    history=[];
+    resultVisible=false;
+    heldLeft=false;
+    heldRight=false;
+
+    startOverlay.style.display='none';
+    renderAll();
+  }
+
+  [leftInput,rightInput,opInput].forEach(el=>{
+    el.addEventListener('keydown',e=>{
+      if(e.key==='Enter'){
+        e.preventDefault();
+        e.stopPropagation();
+        begin();
+      }
+    });
+  });
+
+  document.addEventListener('keydown',e=>{
+    if(e.target && ['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+    if(startOverlay.style.display!=='none') return;
+
+    if(helpOverlay.style.display==='flex'){
+      if(e.key==='Escape' || e.key==='?' || (e.shiftKey && e.code==='Slash')){
+        e.preventDefault();
+        helpOverlay.style.display='none';
+      }
+      return;
+    }
+
+    if(e.key==='ArrowLeft'){
+      heldLeft=true;
+      e.preventDefault();
+      return;
+    }
+
+    if(e.key==='ArrowRight'){
+      heldRight=true;
+      e.preventDefault();
+      return;
+    }
+
+    const m=e.code.match(/^Digit([2-9])$/);
+    if(m && (heldLeft || heldRight)){
+      e.preventDefault();
+      const k=Number(m[1]);
+      const sideName = heldLeft && !heldRight ? 'left' : heldRight && !heldLeft ? 'right' : null;
+
+      if(!sideName){
+        showToast('Hold only one arrow key',true);
+        return;
+      }
+
+      if(e.shiftKey) divideSide(sideName,k);
+      else multiplySide(sideName,k);
+      return;
+    }
+
+    if(e.key==='Enter' || e.code==='Space'){
+      e.preventDefault();
+      toggleResult();
+      return;
+    }
+
+    if(e.key==='?' || (e.shiftKey && e.code==='Slash')){
+      e.preventDefault();
+      helpOverlay.style.display='flex';
+      return;
+    }
+
+    switch(e.key.toLowerCase()){
+      case 'z':
+        e.preventDefault();
+        undo();
+        break;
+      case 'r':
+        e.preventDefault();
+        reset();
+        break;
+      case 'f':
+        e.preventDefault();
+        leftInput.value=`${left.startNum}/${left.startDen}`;
+        rightInput.value=`${right.startNum}/${right.startDen}`;
+        opInput.value=operation;
+        startOverlay.style.display='flex';
+        setTimeout(()=>leftInput.focus(),0);
+        break;
+    }
+  });
+
+  document.addEventListener('keyup',e=>{
+    if(e.key==='ArrowLeft') heldLeft=false;
+    if(e.key==='ArrowRight') heldRight=false;
+  });
+
+  window.addEventListener('blur',()=>{
+    heldLeft=false;
+    heldRight=false;
+  });
+
+  renderAll();
+  setTimeout(()=>{
+    leftInput.focus();
+    leftInput.select();
+  },50);
+})();
+</script>
+</body>
+</html>
